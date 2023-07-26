@@ -23,29 +23,22 @@ CONTAINER1="polard-node1"
 HOMEDIR="/root/.polard"
 SCRIPTS="/scripts"
 
-# init step 1 
-docker exec $CONTAINER0 bash -c "$SCRIPTS/seed0-init-step1.sh"
-docker exec $CONTAINER1 bash -c "$SCRIPTS/seed1-init-step1.sh seed-1"
+# init nodes
+docker exec $CONTAINER0 bash -c "$SCRIPTS/init.sh $CONTAINER0"
+docker exec $CONTAINER1 bash -c "$SCRIPTS/init.sh $CONTAINER1"
 
-# copy genesis.json from seed-0 to seed-1
-docker cp $CONTAINER0:$HOMEDIR/config/genesis.json ./temp/genesis.json
-docker cp ./temp/genesis.json $CONTAINER1:$HOMEDIR/config/genesis.json
+# create validators
+docker exec $CONTAINER0 bash -c "$SCRIPTS/create-validator.sh $CONTAINER0"
+docker exec $CONTAINER1 bash -c "$SCRIPTS/create-validator.sh $CONTAINER1"
 
-# init step 2
-docker exec $CONTAINER1 bash -c "$SCRIPTS/seed1-init-step2.sh seed-1"
-
-# copy genesis.json from seed-1 to seed-0
-docker cp $CONTAINER1:$HOMEDIR/config/genesis.json ./temp/genesis.json
-docker cp ./temp/genesis.json $CONTAINER0:$HOMEDIR/config/genesis.json
-
-# copy gentx
+# copy gentx to CONTAINER0
 docker cp $CONTAINER1:$HOMEDIR/config/gentx ./temp/gentx
-docker cp ./temp/gentx $CONTAINER0:$HOMEDIR/config 
+docker cp ./temp/gentx $CONTAINER0:$HOMEDIR/config
 
-# init step 2
-docker exec $CONTAINER0 bash -c "$SCRIPTS/seed0-init-step2.sh"
+# update genesis file using gentx
+docker exec $CONTAINER0 bash -c "$SCRIPTS/dump-genesis.sh"
 
-# copy genesis.json from seed-0 to seed-1
+# copy genesis file to all nodes
 docker cp $CONTAINER0:$HOMEDIR/config/genesis.json ./temp/genesis.json
 docker cp ./temp/genesis.json $CONTAINER1:$HOMEDIR/config/genesis.json
 
