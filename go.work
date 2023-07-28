@@ -7,4 +7,5 @@ use (
 	./eth
 	./lib
 	./magefiles
+	./genbld
 )
