@@ -14,20 +14,55 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#######################################################
+###           Stage 0 - Build Arguments             ###
+#######################################################
+
 ARG GO_VERSION
 ARG GOARCH=amd64
 ARG GOOS=linux
+ARG APP_NAME=genbld
+ARG CMD_PATH=./genbld
 
+#######################################################
+###         Stage 1 - Build the Application         ###
+#######################################################
 
-# Use the latest foundry image
+FROM golang:${GO_VERSION}-alpine as builder
+
+# Set the working directory
+WORKDIR /workdir
+
+# Copy go.mod and go.sum files
+COPY ./genbld/go.sum ./genbld/go.mod ./genbld/
+
+# Download the go module dependencies
+RUN go mod download
+
+# Copy the rest of the source code
+COPY . .
+
+RUN env GOOS=${GOOS} GOARCH=${GOARCH} && \
+    go build \
+    -mod=readonly \
+    -trimpath \
+    -o /workdir/bin \
+    ${CMD_PATH}
+
+COPY /workdir/bin/${APP_NAME} /bin/
+
+#######################################################
+###        Stage 2 - Prepare the Final Image        ###
+#######################################################
+
 FROM polard/base:v0.0.0 as basepolard
 
-RUN apk add --no-cache bash jq sed curl
+RUN apk add --no-cache bash
 
-WORKDIR /
+# Build args
+ARG APP_NAME
 
-COPY ./cosmos/docker/seed/scripts scripts/
-
-RUN chmod +x scripts/*
+COPY /workdir/bin/genbld /bin/
+COPY /workdir/bin/${APP_NAME} /bin/
 
 CMD ["sh", "-c", "sleep infinity"]

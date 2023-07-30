@@ -18,29 +18,32 @@
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
 # TITLE.
 
-CONTAINER0="polard-node0"
-CONTAINER1="polard-node1"
+CONTAINER_PREFIX="polard-node"
 HOMEDIR="/root/.polard"
-SCRIPTS="/scripts"
+CHAINID="polaris-2061"
 
 # init nodes
-docker exec $CONTAINER0 bash -c "$SCRIPTS/init.sh $CONTAINER0"
-docker exec $CONTAINER1 bash -c "$SCRIPTS/init.sh $CONTAINER1"
+for i in {0..2}
+do
+  docker exec "$CONTAINER_PREFIX$i" bash -c "genbld init $CONTAINER_PREFIX$i --home $HOMEDIR --chain-id $CHAINID"
+done
 
-# create validators
-docker exec $CONTAINER0 bash -c "$SCRIPTS/create-validator.sh $CONTAINER0"
-docker exec $CONTAINER1 bash -c "$SCRIPTS/create-validator.sh $CONTAINER1"
-
-# copy gentx to CONTAINER0
-docker cp $CONTAINER1:$HOMEDIR/config/gentx ./temp/gentx
-docker cp ./temp/gentx $CONTAINER0:$HOMEDIR/config
+# copy all gentx to container 0
+for i in {0..2}
+do
+  docker cp "$CONTAINER_PREFIX$i":$HOMEDIR/config/gentx ./temp/gentx
+  docker cp ./temp/gentx "$CONTAINER_PREFIX"0:$HOMEDIR/config
+done
 
 # update genesis file using gentx
-docker exec $CONTAINER0 bash -c "$SCRIPTS/dump-genesis.sh"
+docker exec "$CONTAINER_PREFIX"0 bash -c "genbld collect --home $HOMEDIR"
 
-# copy genesis file to all nodes
-docker cp $CONTAINER0:$HOMEDIR/config/genesis.json ./temp/genesis.json
-docker cp ./temp/genesis.json $CONTAINER1:$HOMEDIR/config/genesis.json
+# copy genesis file to all containers
+docker cp "$CONTAINER_PREFIX$i":$HOMEDIR/config/genesis.json ./temp/genesis.json
+for i in {0..2}
+do
+  docker cp ./temp/genesis.json "$CONTAINER_PREFIX$i":$HOMEDIR/config/genesis.json
+done
 
 # start
 # docker exec -it $CONTAINER0 bash -c "$SCRIPTS/seed-start.sh"
